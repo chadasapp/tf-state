@@ -5,6 +5,7 @@ Usage:
   tf_state.py get STATE
   tf_state.py (rm|remove) STATE
   tf_state.py (mv|move) FROM_STATE TO_STATE
+  tf_state.py plan STATE
   tf_state.py (-h | --help)
   tf_state.py --version
 
@@ -27,6 +28,8 @@ def main():
     args = docopt(__doc__, version=__version__)
     if args['get']:
         get(args['STATE'])
+    elif args['plan']:
+        plan(args['STATE'])
     elif args['remove'] or args['rm']:
         remove(args['STATE'])
     elif args['move'] or args['mv']:
@@ -74,6 +77,14 @@ def remove(state):
         subprocess.check_call(rm_cmd)
         print('Done')
         sys.exit(0)
+
+
+def plan(state):
+    """Plan all (or some) of the things."""
+    plan = ['terraform', 'plan']
+    for target in _state_matches(state):
+        plan.append('-target={}'.format(target))
+    subprocess.check_call(plan)
 
 
 def move(from_state, to_state):
