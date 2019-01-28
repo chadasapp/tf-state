@@ -4,7 +4,7 @@
 Usage:
   tf_state.py get STATE
   tf_state.py (rm|remove) STATE
-  tf_state.py (mv|move) FROM_STATE TO_STATE
+  tf_state.py (mv|move) FROM_PREFIX TO_PREFIX
   tf_state.py plan STATE
   tf_state.py (-h | --help)
   tf_state.py --version
@@ -33,7 +33,7 @@ def main():
     elif args['remove'] or args['rm']:
         remove(args['STATE'])
     elif args['move'] or args['mv']:
-        move(args['FROM_STATE'], args['TO_STATE'])
+        move(args['FROM_PREFIX'], args['TO_PREFIX'])
 
 
 def _prompt():
@@ -81,16 +81,33 @@ def remove(state):
 
 def plan(state):
     """Plan all (or some) of the things."""
-    plan = ['terraform', 'plan']
+    tf_plan = ['terraform', 'plan']
     for target in _state_matches(state):
-        plan.append('-target={}'.format(target))
-    subprocess.check_call(plan)
+        tf_plan.append('-target={}'.format(target))
+    subprocess.check_call(tf_plan)
 
 
-def move(from_state, to_state):
+def move(from_prefix, to_prefix):
     """Move a state or states."""
-    state_list = _state_matches(from_state)
+    if not from_prefix.endswith('*'):
+        print('Moving requires a common prefix, no pattern was specified.')
+        sys.exit(1)
 
+    old_to_new = {}
+    old_prefix = from_prefix[:-1]
+    new_prefix = to_prefix
+    if new_prefix.endswith('*'):
+        new_prefix = new_prefix[:-1]
+
+    print("The following renamings will occur:")
+    for old_state in _state_matches(from_prefix):
+        new_state = old_state.replace(old_prefix, new_prefix)
+        old_to_new[old_state] = new_state
+        print('{} => {}'.format(old_state, new_state))
+
+    if _prompt():
+        for old, new in old_to_new:
+            subprocess.check_call(['terraform', 'state', 'mv', old, new])
 
 if __name__ == '__main__':
     main()
